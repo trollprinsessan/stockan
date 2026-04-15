@@ -277,6 +277,33 @@
     max-width: 100%;
     height: auto;
   }
+
+  /* MOBILE */
+  @media (max-width: 768px) {
+    .app {
+      flex-direction: column;
+    }
+    .sidebar {
+      width: 100%;
+      min-width: 0;
+      border-right: none;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 24px 20px;
+      gap: 20px;
+    }
+    .canvas-area {
+      padding: 20px;
+    }
+    .canvas-wrapper {
+      width: 100%;
+    }
+    .format-options {
+      flex-wrap: wrap;
+    }
+    .format-btn {
+      min-width: 0;
+    }
+  }
 </style>
 </head>
 <body>
@@ -607,14 +634,36 @@
 
   // --- EXPORT ---
   function exportImage() {
-    const link = document.createElement('a');
     const fmt = FORMATS[state.format];
     const name = state.headline
       ? state.headline.replace(/\n/g, '-').replace(/[^a-zA-ZåäöÅÄÖ0-9-]/g, '').substring(0, 30).toLowerCase()
       : 'stocksunds-if';
-    link.download = `${name}_${fmt.w}x${fmt.h}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+    const filename = `${name}_${fmt.w}x${fmt.h}.png`;
+
+    // Use toBlob for better mobile support
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+
+      // Try share API first (best on mobile — opens native share sheet)
+      if (navigator.share && navigator.canShare) {
+        const file = new File([blob], filename, { type: 'image/png' });
+        const shareData = { files: [file] };
+        if (navigator.canShare(shareData)) {
+          navigator.share(shareData).catch(() => {});
+          return;
+        }
+      }
+
+      // Fallback: open blob URL in new tab (long-press to save on mobile)
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = url;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }, 'image/png');
   }
 
   // Initial render
